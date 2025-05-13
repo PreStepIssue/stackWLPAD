@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stack Web Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: linear-gradient(to top, #222, #444); font-family: sans-serif; }
+    canvas { display: block; margin: auto; background: linear-gradient(to top, #4facfe, #00f2fe); }
+    #score { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: white; font-size: 2em; }
+  </style>
+</head>
+<body>
+  <div id="score">0</div>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const stack = [];
+    let speed = 5;
+    let direction = 1;
+    let blockHeight = 30;
+    let currentBlock = null;
+    let gameOver = false;
+    let score = 0;
+
+    function createBlock(y, width, x = null) {
+      return {
+        x: x === null ? width / 2 : x,
+        y: y,
+        width: width,
+        height: blockHeight,
+        color: `hsl(${Math.random() * 360}, 70%, 60%)`
+      };
+    }
+
+    function resetGame() {
+      stack.length = 0;
+      stack.push(createBlock(height - blockHeight, 300));
+      currentBlock = createBlock(height - blockHeight * 2, 300, 0);
+      speed = 5;
+      direction = 1;
+      score = 0;
+      gameOver = false;
+      document.getElementById('score').innerText = score;
+    }
+
+    function drawBlock(block) {
+      ctx.fillStyle = block.color;
+      ctx.fillRect(block.x - block.width / 2, block.y, block.width, block.height);
+    }
+
+    function update() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Camera effect
+      const cameraOffset = Math.max(0, (stack.length - 10) * blockHeight);
+
+      stack.forEach(block => {
+        drawBlock({ ...block, y: block.y + cameraOffset });
+      });
+
+      if (!gameOver) {
+        currentBlock.x += speed * direction;
+
+        if (currentBlock.x - currentBlock.width / 2 <= 0 || currentBlock.x + currentBlock.width / 2 >= width) {
+          direction *= -1;
+        }
+
+        drawBlock({ ...currentBlock, y: currentBlock.y + cameraOffset });
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function placeBlock() {
+      const topBlock = stack[stack.length - 1];
+      const delta = currentBlock.x - topBlock.x;
+
+      if (Math.abs(delta) > currentBlock.width) {
+        gameOver = true;
+        alert('Game Over! Score: ' + score);
+        return;
+      }
+
+      const overlap = currentBlock.width - Math.abs(delta);
+
+      // Add trimmed block to stack
+      currentBlock.width = overlap;
+      currentBlock.x = topBlock.x + delta / 2;
+      stack.push({ ...currentBlock });
+
+      // Falling off piece animation
+      const fallingPiece = {
+        x: currentBlock.x - Math.sign(delta) * (currentBlock.width / 2 + Math.abs(delta) / 2),
+        y: currentBlock.y,
+        width: Math.abs(delta),
+        height: blockHeight,
+        color: currentBlock.color,
+        dy: 0
+      };
+
+      animateFallingPiece(fallingPiece);
+
+      // Next block
+      currentBlock = createBlock(currentBlock.y - blockHeight, overlap, 0);
+      score++;
+      document.getElementById('score').innerText = score;
+
+      // Increase speed slightly
+      speed = Math.min(speed + 0.1, 10);
+    }
+
+    function animateFallingPiece(piece) {
+      const fallAnimation = () => {
+        piece.dy += 0.5;
+        piece.y += piece.dy;
+
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(piece.x - piece.width / 2, piece.y, piece.width, piece.height);
+
+        if (piece.y < height) {
+          requestAnimationFrame(fallAnimation);
+        }
+      };
+      requestAnimationFrame(fallAnimation);
+    }
+
+    window.addEventListener('click', () => {
+      if (!gameOver) {
+        placeBlock();
+      } else {
+        resetGame();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    });
+
+    resetGame();
+    update();
+  </script>
+</body>
+</html>
